@@ -192,7 +192,36 @@ namespace GitLfs.Server.Caching.Controllers
                     }
                     else if (request.Operation == BatchRequestMode.Upload)
                     {
-                        returnResult.Objects.Add(batchObject);
+                        var returnBatchObject = new BatchObject { Id = pendingObjectId, Actions = new List<BatchObjectAction>() };
+
+                        if (batchObject == null || (batchObject.Actions.Count == 0 && this.fileManager.IsFileStored(
+                                   repositoryName,
+                                    pendingObjectId,
+                                    FileLocation.Permenant)))
+                        {
+                            continue;
+                        }
+
+                        var uploadAction =
+                            new BatchObjectAction
+                            {
+                                Mode = BatchActionMode.Upload,
+                                HRef =
+                                        $"{this.Request.Scheme}://{this.Request.Host}/api/{hostId}/{repositoryName}/info/lfs/{pendingObjectId.Hash}/{pendingObjectId.Size}"
+                            };
+
+                        var verifyAction =
+                            new BatchObjectAction
+                            {
+                                Mode = BatchActionMode.Verify,
+                                HRef =
+                                        $"{this.Request.Scheme}://{this.Request.Host}/api/{hostId}/{repositoryName}/info/lfs/verify/{pendingObjectId.Hash}/{pendingObjectId.Size}"
+                            };
+
+                        returnBatchObject.Actions.Add(uploadAction);
+                        returnBatchObject.Actions.Add(verifyAction);
+
+                        returnResult.Objects.Add(returnBatchObject);
                     }
                     else if (request.Operation == BatchRequestMode.Download)
                     {
@@ -205,6 +234,7 @@ namespace GitLfs.Server.Caching.Controllers
                         returnBatchObject.Actions.Add(action);
                         returnResult.Objects.Add(returnBatchObject);
                     }
+
                 }
 
                 return this.Ok(returnResult);
